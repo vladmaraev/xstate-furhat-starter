@@ -673,7 +673,7 @@ async function fetchFromChatGPT(prompt: string, max_tokens: number) {
   const myHeaders = new Headers();
   myHeaders.append(
     "Authorization",
-    "Bearer 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",
+    "Bearer <key here>",
   );
   myHeaders.append("Content-Type", "application/json");
   const raw = JSON.stringify({
