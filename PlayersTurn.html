@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Guess the Word Game</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-image: url("image.webp");
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+        #word-container {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            display: flex;
+            font-size: medium;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+        }
+        #choices {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .choice {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: 1px solid #000;
+            cursor: pointer;
+            text-decoration: #000;
+            font-family: cursive;
+            background-color: rgb(249, 224, 216);
+        }
+        #next-player {
+            width: 90px;
+            height: 50px;
+            text-decoration: #000;
+            background-color: bisque;
+        }
+
+        h1 {
+            color:#020202;
+        }
+        p {
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Guess the Word</h1>
+    <div id="word-container">
+        <div id="word-display" style="color: transparent;">Click Start</div>
+    </div>
+    <button id="next-player">Next Player</button>
+    <div id="choices">
+        <div class="choice" onclick="checkGuess(this)">apple</div>
+        <div class="choice" onclick="checkGuess(this)">banana</div>
+        <div class="choice" onclick="checkGuess(this)">grape</div>
+        <div class="choice" onclick="checkGuess(this)">orange</div>
+    </div>
+    <p>Chances remaining: <span id="chances">3</span></p>
+
+    <script>
+        const words = ["apple", "banana", "grape", "orange"];
+        let currentWord = "";
+        let chances = 3;
+
+        function startGame() {
+            currentWord = getRandomWord();
+            displayWord(currentWord);
+            resetChances();
+            enableChoices();
+        }
+
+        function getRandomWord() {
+            return words[Math.floor(Math.random() * words.length)];
+        }
+
+        function displayWord(word) {
+            document.getElementById("word-display").innerHTML = word === "Correct!" ? "<u>" + word + "</u>" : word;
+        }
+
+        function resetChances() {
+            chances = 3;
+            document.getElementById("chances").textContent = chances;
+        }
+
+        function checkGuess(choice) {
+    if (chances > 0) {
+        if (choice.textContent === currentWord) {
+            displayTitleW("You Won!");
+            disableChoices();
+        } else {
+            chances--;
+            document.getElementById("chances").textContent = chances;
+        }
+    }
+    if (chances === 0) {
+        displayTitleL("You lost!");
+        disableChoices();
+    }
+}
+
+function displayTitleL(title) {
+    const h1 = document.querySelector("h1");
+    h1.textContent = title;
+    h1.style.color = "red"; // Optionally, you can change the title's color
+}
+
+function displayTitleW(title) {
+    const h1 = document.querySelector("h1");
+    h1.textContent = title;
+    h1.style.color = "green"; // Optionally, you can change the title's color
+}
+
+        function enableChoices() {
+            const choices = document.querySelectorAll(".choice");
+            choices.forEach(choice => choice.style.pointerEvents = "auto");
+        }
+
+        function disableChoices() {
+            const choices = document.querySelectorAll(".choice");
+            choices.forEach(choice => choice.style.pointerEvents = "none");
+        }
+
+        const nextPlayerButton = document.getElementById("next-player");
+
+    nextPlayerButton.addEventListener("click", () => {
+    location.href = "GuessTheWord.html"; // Replace the current page with "PlayersTurn.html"
+  });
+
+        startGame();
+    </script>
+</body>
+</html> 
