@@ -1,6 +1,6 @@
 import { createMachine, createActor, fromPromise, assign } from "xstate";
 
-const FURHATURI = "192.168.1.236:54321"
+const FURHATURI = "<address here>"
 async function fhSay(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -1445,7 +1445,7 @@ async function fetchFromChatGPT(prompt: string, max_tokens: number) {
   const myHeaders = new Headers();
   myHeaders.append(
     "Authorization",
-    "Bearer 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",
+    "Bearer <key here>",
   );
   myHeaders.append("Content-Type", "application/json");
   const raw = JSON.stringify({
