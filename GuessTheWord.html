@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Word Generator</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-image: url("image.webp");
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+    #word-box {
+    width: 300px;
+    height: 200px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-size: 60px;
+  }
+    #correct {
+    width: 100px;
+    height: 50px;
+    font-size: 18px;
+    padding: 10px 20px;
+    margin-right: 40%;
+    margin-bottom: -10%;
+    margin-top: 4%;
+    border: 1px solid #000;
+    cursor: pointer;
+    text-decoration: #000;
+    font-family: cursive;
+    background-color: rgb(249, 224, 216);
+    }
+
+    #wrong {
+    width: 100px;
+    height: 50px;
+    font-size: 18px;
+    padding: 10px 20px;
+    margin-right: 0%;
+    margin-bottom: -10%;
+    margin-top: 1.3%;
+    border: 1px solid #000;
+    cursor: pointer;
+    text-decoration: #000;
+    font-family: cursive;
+    background-color: rgb(249, 224, 216);
+    }
+
+    #next-player {
+    width: 150px;
+    height: 50px;
+    font-size: 18px;
+    padding: 10px 20px;
+    margin-right: -50%;
+    margin-bottom: -10%;
+    margin-top: 1.3%;
+    border: 1px solid #000;
+    cursor: pointer;
+    text-decoration: #000;
+    font-family: cursive;
+    background-color: bisque;
+    }
+
+    #tries-left {
+      color: rgb(16, 16, 16);
+      margin-top: 16%;
+      font-size: 24px;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="word-box"></div>
+  <button id="correct">Correct</button>
+  <button id="wrong">Wrong</button>
+  <button id="next-player">Next Player</button>
+  <div id="tries-left">Tries left: 3</div>
+
+  <script>
+    // List of words
+    const words = ["Giraffe", "Indigo", "New Zealand", "Sushi","Istanbul", "Pineapple", "Hot Air Balloon", "Violin","To Kill a Mockingbird","Inception" ]    
+
+    // Function to display a random word
+    function displayRandomWord() {
+      const wordBox = document.getElementById("word-box");
+      const randomIndex = Math.floor(Math.random() * words.length);
+      wordBox.innerText = words[randomIndex];
+    }
+
+    // Animation: Cycle through the words
+    let animationInterval;
+    let totalAnimationTime = 1000; // Animation duration in milliseconds (5 seconds)
+    let animationStartTime = Date.now();
+
+    function animateWords() {
+      const currentTime = Date.now();
+      const elapsed = currentTime - animationStartTime;
+
+      if (elapsed >= totalAnimationTime) {
+        clearInterval(animationInterval); // Stop the animation after 5 seconds
+        displayRandomWord(); // Display a random word
+      } else {
+        displayRandomWord(); // Display a random word during animation
+      }
+    }
+
+    // Start the animation
+    animationInterval = setInterval(animateWords, 80); // Change word every 100ms
+
+    // Correct and Wrong button logic
+    const correctButton = document.getElementById("correct");
+    const wrongButton = document.getElementById("wrong");
+    let wrongCount = 0;
+
+    correctButton.addEventListener("click", () => {
+      clearInterval(animationInterval); // Stop the animation
+      document.getElementById("word-box").innerText = "You lost!";
+    });
+
+    wrongButton.addEventListener("click", () => {
+      wrongCount++;
+      document.getElementById("tries-left").innerText = `Tries left: ${3 - wrongCount}`;
+      if (wrongCount === 3) {
+        clearInterval(animationInterval); // Stop the animation
+        document.getElementById("word-box").innerText = "You won!";
+      }
+    });
+
+    const nextPlayerButton = document.getElementById("next-player");
+
+    nextPlayerButton.addEventListener("click", () => {
+    location.href = "PlayersTurn.html"; // Replace the current page with "PlayersTurn.html"
+  });
+
+  </script>
+</body>
+</html>
