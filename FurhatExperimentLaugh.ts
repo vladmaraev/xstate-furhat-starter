@@ -19,10 +19,7 @@ function resetGlobalPressedKey() {
   globalPressedKey = null;
 }
 
-const FURHATURI = "192.168.1.11:54321"
-
-//local host url: 127.0.0.1
-//furhat's lab url: 192.168.1.11
+const FURHATURI = "127.0.0.1:54321"
 
 async function fhSay(text: string) {
   const myHeaders = new Headers();
