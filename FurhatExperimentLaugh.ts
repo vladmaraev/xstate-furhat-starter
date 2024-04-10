@@ -481,7 +481,7 @@ async function fetchFromChatGPTMemory(prompt: string, lastGPTutterance: string, 
   const myHeaders = new Headers();
   myHeaders.append(
     "Authorization",
-    "Bearer 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",
+    "Bearer <key>",
   );
   myHeaders.append("Content-Type", "application/json");
   const raw = JSON.stringify({
