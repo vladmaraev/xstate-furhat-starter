@@ -226,10 +226,10 @@ const dmMachine = setup({
     },
     Fetch: {
       invoke: {
-        src: fromPromise(async ({ input }) => {
+        src: fromPromise<any, { text: string }>(async ({ input }) => {
           return Promise.all([
-            fhSay(input.text), 
-            fhGesture() 
+            fhSay(input.text), // Now TypeScript knows that input.text exists
+            fhGesture()
           ]);
         }),
         input: ({ context }) => ({
@@ -245,6 +245,7 @@ const dmMachine = setup({
         },
       },
     },
+    
     Recognised: {},
     Fail: {},
   },
