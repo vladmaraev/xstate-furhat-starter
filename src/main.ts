@@ -2,6 +2,18 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
+
+async function fhAttendToUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+
 async function fhSay(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -13,24 +25,66 @@ async function fhSay(text: string) {
   });
 }
 
-async function newGesture() {
+async function WinkGesture() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "newGesture",
+      name: "winkGesture",
       frames: [
         {
-          time: [], //ADD THE TIME FRAME OF YOUR LIKING
+          time: [0.3, 0.8], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
           persist: true,
           params: {
-            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
+            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE, add in quotes
+            // "EYE_LOOK_DOWN_RIGHT" : 0.4 the degree of how potent the expression is, 1 is the highest
+            "BLINK_RIGHT" : 0.8,
+            "NECK_PAN" : -20.0,
+            "SMILE_CLOSED" : 0.4,
+            "BROW_UP_LEFT": 0.3
           },
         },
         {
-          time: [], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
+          time: [0.9], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+        //ADD MORE TIME FRAMES IF YOUR GESTURE REQUIRES THEM
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function ScaredGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "scaredGesture",
+      frames: [
+        {
+          time: [0.3, 0.8], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
+          persist: true,
+          params: {
+            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE, add in quotes
+            // "EYE_LOOK_DOWN_RIGHT" : 0.4 the degree of how potent the expression is, 1 is the highest
+            "EXPR_FEAR" : 0.9,
+            "PHONE_AAH" : 0.9,
+            "BROWN_DOWN_LEFT": 0.4,
+            "BROWN_DOWN_RIGHT": 0.4, 
+            "LOOK_DOWN_LEFT": 0.7,
+            "LOOK_DOWN_RIGHT": 0.7
+          },
+        },
+        {
+          time: [0.9], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
           persist: true,
           params: {
             reset: true,
@@ -69,42 +123,127 @@ async function fhListen() {
     .then((value) => JSON.parse(new TextDecoder().decode(value)).message);
 }
 
+
 const dmMachine = setup({
   actors: {
-    fhHello: fromPromise<any, null>(async () => {
-      return fhSay("Hi");
+    fhHello: fromPromise<any, {message: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message),
+        WinkGesture()
+      ])
+    }),
+    fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
+      return fhSay(input.message)
+    }),
+    fhGesture: fromPromise<any, {message: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message), // TODO: we need to implement sound here instead of input.message !!!
+        fhGesture("Surprise")
+      ])
     }),
     fhL: fromPromise<any, null>(async () => {
-     return fhListen();
-   }),
-  },
+     return Promise.all([
+      fhListen(),
+     ])
+    }),
+    scaredGesture: fromPromise<any,{message: string}>(async ({input}) => {
+      return Promise.all([
+        ScaredGesture(),
+        fhSay(input.message)
+      ])
+    }),
+    ftAttend : fromPromise<any, null>(async () => {
+      return fhAttendToUser()
+    })
+   }
 }).createMachine({
   id: "root",
   initial: "Start",
   states: {
-    Start: { after: { 1000: "Next" } },
-    Next: {
+    Start: { after: { 1000: "Greet" } },
+    Greet: {
       invoke: {
         src: "fhHello",
-        input: null,
+        input: {message: "Hi there you beautiful thing! Tell me something."},
         onDone: {
-          target: "Recognised",
+          target: "Listen",
           actions: ({ event }) => console.log(event.output),
-        },
+          },
         onError: {
           target: "Fail",
           actions: ({ event }) => console.error(event),
+          },
         },
       },
+
+    Listen: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Surprised",
+          actions: [({ event }) => console.log(event.output), assign({ lastResult: ({ event }) => event.output,}),
+            ]},
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+          },
+        },
+      },
+
+    Surprised: {
+      invoke: {
+        src : "fhGesture",
+        input: { message: "My oh my! That's so cool!" },
+        onDone: {
+          target:"Speak",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
     },
-    Recognised: {},
-    Fail: {},
   },
+
+    Speak: {
+      invoke: {
+        src: "fhSpeak",
+        input: { message: "Now tell me something scary please, since it's soon Halloween...!" },
+        onDone: {
+          target:"Scared",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
+      }
+    },
+
+    Scared : {
+      invoke: {
+        src: "scaredGesture",
+        input: { message: "Eeeeeeeeeeeeeeeeeeeeeeeeeek! That's too scary for me!"}, //the sound will replace this here eventully
+        onDone: {
+          target:"Listen",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
+        }
+      },
+
+    Recognised: {},
+    Fail: {
+    },
+      }
 });
 
 const actor = createActor(dmMachine).start();
-console.log(actor.getSnapshot().value);
+console.log(`this is actor.getSnapshot().value --> ${actor.getSnapshot().value}`);
 
 actor.subscribe((snapshot) => {
-  console.log(snapshot.value);
+  console.log(`this is snapshot.value --> ${snapshot.value}`);
 });
