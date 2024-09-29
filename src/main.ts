@@ -25,7 +25,7 @@ async function newGesture() {
         {
           time: [], //ADD THE TIME FRAME OF YOUR LIKING
           persist: true,
-          params: {
+          params: { //"movement" : numbers (degree of movement )
             //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
           },
         },
@@ -88,9 +88,25 @@ const dmMachine = setup({
         src: "fhHello",
         input: null,
         onDone: {
-          target: "Recognised",
+          target: "Hello",
           actions: ({ event }) => console.log(event.output),
         },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Hello: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Recognised",
+          actions: [({ event }) => console.log(event.output),
+            assign({ 
+              lastResult: ({ event }) => event.output,
+            }),
+        ]},
         onError: {
           target: "Fail",
           actions: ({ event }) => console.error(event),
