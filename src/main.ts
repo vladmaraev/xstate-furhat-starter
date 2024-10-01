@@ -9,8 +9,32 @@ async function fhAttendToUser() {
   return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
     method: "POST",
     headers: myHeaders,
+    body: JSON.stringify({ // not sure if this part is needed?
+      enum: "CLOSEST",
+    }),
+  });
+}
+
+async function fhScream() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encURL = encodeURIComponent("https://jumpshare.com/s/yjDBIF8eA8pZsNuUr3jz");
+  return fetch(`http://${FURHATURI}/furhat/say?url=${encURL}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
     body: "",
   });
+  }
+
+
+async function fhLed() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/led?red=250&green=50&blue=50`), {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  }
 }
 
 
@@ -97,6 +121,7 @@ async function ScaredGesture() {
   });
 }
 
+// this one is for retrieving ready - made gestures from Furhat
 async function fhGesture(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -129,11 +154,16 @@ const dmMachine = setup({
     fhHello: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
         fhSay(input.message),
-        WinkGesture()
+        WinkGesture(),
+        fhAttendToUser(),
+        fhLed()  // why does the led not work?
       ])
     }),
     fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
-      return fhSay(input.message)
+      return Promise.all([
+        fhSay(input.message),
+        fhAttendToUser()
+      ])
     }),
     fhGesture: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
@@ -144,16 +174,23 @@ const dmMachine = setup({
     fhL: fromPromise<any, null>(async () => {
      return Promise.all([
       fhListen(),
+      fhAttendToUser()
      ])
     }),
-    scaredGesture: fromPromise<any,{message: string}>(async ({input}) => {
+    scaredGesture: fromPromise<any,any>(async () => {
       return Promise.all([
         ScaredGesture(),
-        fhSay(input.message)
+        fhScream()
       ])
     }),
-    ftAttend : fromPromise<any, null>(async () => {
-      return fhAttendToUser()
+    fhAttend : fromPromise<any, null>(async () => {
+      return Promise.all([
+        fhAttendToUser(),
+        fhLed()
+      ])
+    }),
+    fhShowLed : fromPromise<any, null>(async () => {
+      return fhLed()
     })
    }
 }).createMachine({
@@ -166,7 +203,7 @@ const dmMachine = setup({
         src: "fhHello",
         input: {message: "Hi there you beautiful thing! Tell me something."},
         onDone: {
-          target: "Listen",
+          target: "Listen1",
           actions: ({ event }) => console.log(event.output),
           },
         onError: {
@@ -175,8 +212,25 @@ const dmMachine = setup({
           },
         },
       },
+      // Attend: {
+      //   invoke: {
+      //     src: "fhAttend",
+      //     //onDone: {
+      //     //  target: "WaitForAttend",
+      //     //  actions: ({ event }) => console.log("This is event.output----->:", event.output),
+      //     },
+      //     //onError: "Fail",
+      //   after: {
+      //     10000: "Greet"
+      //   }
+      //   },
+      // WaitForAttend: {
+      //   after: {
+      //     10000: "Attend", // Introduce a 3-second delay to observe the attending behavior
+      //   },
+      // },
 
-    Listen: {
+    Listen1: {
       invoke: {
         src: "fhL",
         onDone: {
@@ -210,7 +264,7 @@ const dmMachine = setup({
         src: "fhSpeak",
         input: { message: "Now tell me something scary please, since it's soon Halloween...!" },
         onDone: {
-          target:"Scared",
+          target:"Listen2",
           actions: ({ event }) => console.log(event.output)
         },
         onError: {
@@ -220,12 +274,25 @@ const dmMachine = setup({
       }
     },
 
+    Listen2: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Scared",
+          actions: [({ event }) => console.log(event.output), assign({ lastResult: ({ event }) => event.output,}),
+            ]},
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+          },
+        },
+      },
+
     Scared : {
       invoke: {
         src: "scaredGesture",
-        input: { message: "Eeeeeeeeeeeeeeeeeeeeeeeeeek! That's too scary for me!"}, //the sound will replace this here eventully
         onDone: {
-          target:"Listen",
+          target:"Recognised",
           actions: ({ event }) => console.log(event.output)
         },
         onError: {
