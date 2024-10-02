@@ -15,17 +15,17 @@ async function fhAttendToUser() {
   });
 }
 
-async function fhScream() {
+async function fhAudioSound(url: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
-  const encURL = encodeURIComponent("https://jumpshare.com/s/yjDBIF8eA8pZsNuUr3jz");
+  const encURL = encodeURIComponent(url);
+  
   return fetch(`http://${FURHATURI}/furhat/say?url=${encURL}&blocking=true`, {
     method: "POST",
     headers: myHeaders,
     body: "",
   });
-  }
-
+}
 
 async function fhLed() {
   const myHeaders = new Headers();
@@ -94,7 +94,7 @@ async function ScaredGesture() {
       name: "scaredGesture",
       frames: [
         {
-          time: [0.3, 0.8], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
+          time: [0.2, 0.9], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
           persist: true,
           params: {
             //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE, add in quotes
@@ -108,7 +108,7 @@ async function ScaredGesture() {
           },
         },
         {
-          time: [0.9], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
+          time: [1.0], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
           persist: true,
           params: {
             reset: true,
@@ -167,7 +167,7 @@ const dmMachine = setup({
     }),
     fhGesture: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
-        fhSay(input.message), // TODO: we need to implement sound here instead of input.message !!!
+        fhSay(input.message), 
         fhGesture("Surprise")
       ])
     }),
@@ -180,7 +180,7 @@ const dmMachine = setup({
     scaredGesture: fromPromise<any,any>(async () => {
       return Promise.all([
         ScaredGesture(),
-        fhScream()
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/xstate-furhat-starter/master/scream-3-244948.wav")
       ])
     }),
     fhAttend : fromPromise<any, null>(async () => {
@@ -212,24 +212,7 @@ const dmMachine = setup({
           },
         },
       },
-      // Attend: {
-      //   invoke: {
-      //     src: "fhAttend",
-      //     //onDone: {
-      //     //  target: "WaitForAttend",
-      //     //  actions: ({ event }) => console.log("This is event.output----->:", event.output),
-      //     },
-      //     //onError: "Fail",
-      //   after: {
-      //     10000: "Greet"
-      //   }
-      //   },
-      // WaitForAttend: {
-      //   after: {
-      //     10000: "Attend", // Introduce a 3-second delay to observe the attending behavior
-      //   },
-      // },
-
+  
     Listen1: {
       invoke: {
         src: "fhL",
