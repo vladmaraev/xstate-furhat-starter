@@ -2,7 +2,7 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
-
+// attending to User function
 async function fhAttendToUser() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -15,6 +15,7 @@ async function fhAttendToUser() {
   });
 }
 
+// audio producing function
 async function fhAudioSound(url: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -27,17 +28,18 @@ async function fhAudioSound(url: string) {
   });
 }
 
-async function fhLed() {
+// LED function
+async function fhLed(red: number, green: number, blue: number) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
-  return fetch(`http://${FURHATURI}/furhat/led?red=250&green=50&blue=50`), {
+  return fetch(`http://${FURHATURI}/furhat/led?red=${red}&green=${green}&blue=${blue}`, {  
     method: "POST",
     headers: myHeaders,
     body: "",
-  }
+  });
 }
 
-
+// Furhat talking function
 async function fhSay(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -49,6 +51,7 @@ async function fhSay(text: string) {
   });
 }
 
+// Furhat winking function
 async function WinkGesture() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -84,6 +87,7 @@ async function WinkGesture() {
   });
 }
 
+// Furhat scared function
 async function ScaredGesture() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -108,7 +112,7 @@ async function ScaredGesture() {
           },
         },
         {
-          time: [1.0], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
+          time: [3.0], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
           persist: true,
           params: {
             reset: true,
@@ -121,7 +125,7 @@ async function ScaredGesture() {
   });
 }
 
-// this one is for retrieving ready - made gestures from Furhat
+// this one is for retrieving ready - made gestures from Furhat, will be used for suprised gesture in this script
 async function fhGesture(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -135,6 +139,7 @@ async function fhGesture(text: string) {
   );
 }
 
+// Furhat listening function
 async function fhListen() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -156,42 +161,37 @@ const dmMachine = setup({
         fhSay(input.message),
         WinkGesture(),
         fhAttendToUser(),
-        fhLed()  // why does the led not work?
+        fhLed(20,80,150)  // why does the led not work?
       ])
     }),
     fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
         fhSay(input.message),
-        fhAttendToUser()
+        fhAttendToUser(),
       ])
     }),
     fhGesture: fromPromise<any, {message: string}>(async ({input}) => {
       return Promise.all([
         fhSay(input.message), 
-        fhGesture("Surprise")
+        fhGesture("Surprise"),
+        fhAttendToUser(),
       ])
     }),
     fhL: fromPromise<any, null>(async () => {
      return Promise.all([
       fhListen(),
-      fhAttendToUser()
+      fhAttendToUser(),
+      fhLed(80,150,10)
      ])
     }),
     scaredGesture: fromPromise<any,any>(async () => {
       return Promise.all([
         ScaredGesture(),
-        fhAudioSound("https://raw.githubusercontent.com/Anurni/xstate-furhat-starter/master/scream-3-244948.wav")
-      ])
-    }),
-    fhAttend : fromPromise<any, null>(async () => {
-      return Promise.all([
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/xstate-furhat-starter/master/scream-3-244948.wav"),
         fhAttendToUser(),
-        fhLed()
+        fhLed(200,0,0)
       ])
     }),
-    fhShowLed : fromPromise<any, null>(async () => {
-      return fhLed()
-    })
    }
 }).createMachine({
   id: "root",
