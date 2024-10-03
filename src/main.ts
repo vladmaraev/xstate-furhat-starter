@@ -2,6 +2,44 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
+// attending to User function
+async function fhAttendToUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({ // not sure if this part is needed?
+      enum: "CLOSEST",
+    }),
+  });
+}
+
+// audio producing function
+async function fhAudioSound(url: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encURL = encodeURIComponent(url);
+  
+  return fetch(`http://${FURHATURI}/furhat/say?url=${encURL}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+// LED function
+async function fhLed(red: number, green: number, blue: number) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/led?red=${red}&green=${green}&blue=${blue}`, {  
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+// Furhat talking function
 async function fhSay(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -13,24 +51,30 @@ async function fhSay(text: string) {
   });
 }
 
-async function newGesture() {
+// Furhat winking function
+async function WinkGesture() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "newGesture",
+      name: "winkGesture",
       frames: [
         {
-          time: [], //ADD THE TIME FRAME OF YOUR LIKING
+          time: [0.3, 0.8], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
           persist: true,
           params: {
-            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
+            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE, add in quotes
+            // "EYE_LOOK_DOWN_RIGHT" : 0.4 the degree of how potent the expression is, 1 is the highest
+            "BLINK_RIGHT" : 0.8,
+            "NECK_PAN" : -20.0,
+            "SMILE_CLOSED" : 0.4,
+            "BROW_UP_LEFT": 0.3
           },
         },
         {
-          time: [], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
+          time: [0.9], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
           persist: true,
           params: {
             reset: true,
@@ -43,6 +87,45 @@ async function newGesture() {
   });
 }
 
+// Furhat scared function
+async function ScaredGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "scaredGesture",
+      frames: [
+        {
+          time: [0.2, 0.9], //ADD THE TIME FRAME OF YOUR LIKING, from one frame 0 to other ex. 0.4
+          persist: true,
+          params: {
+            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE, add in quotes
+            // "EYE_LOOK_DOWN_RIGHT" : 0.4 the degree of how potent the expression is, 1 is the highest
+            "EXPR_FEAR" : 0.9,
+            "PHONE_AAH" : 0.9,
+            "BROWN_DOWN_LEFT": 0.4,
+            "BROWN_DOWN_RIGHT": 0.4, 
+            "LOOK_DOWN_LEFT": 0.7,
+            "LOOK_DOWN_RIGHT": 0.7
+          },
+        },
+        {
+          time: [3.0], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS, gets the duration of the gesture
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+        //ADD MORE TIME FRAMES IF YOUR GESTURE REQUIRES THEM
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+// this one is for retrieving ready - made gestures from Furhat, will be used for suprised gesture in this script
 async function fhGesture(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -56,6 +139,7 @@ async function fhGesture(text: string) {
   );
 }
 
+// Furhat listening function
 async function fhListen() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -69,42 +153,147 @@ async function fhListen() {
     .then((value) => JSON.parse(new TextDecoder().decode(value)).message);
 }
 
+
 const dmMachine = setup({
   actors: {
-    fhHello: fromPromise<any, null>(async () => {
-      return fhSay("Hi");
+    fhHello: fromPromise<any, {message: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message),
+        WinkGesture(),
+        fhAttendToUser(),
+        fhLed(20,80,150)  // why does the led not work?
+      ])
+    }),
+    fhSpeak: fromPromise<any, {message: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message),
+        fhAttendToUser(),
+      ])
+    }),
+    fhGesture: fromPromise<any, {message: string}>(async ({input}) => {
+      return Promise.all([
+        fhSay(input.message), 
+        fhGesture("Surprise"),
+        fhAttendToUser(),
+      ])
     }),
     fhL: fromPromise<any, null>(async () => {
-     return fhListen();
-   }),
-  },
+     return Promise.all([
+      fhListen(),
+      fhAttendToUser(),
+      fhLed(80,150,10)
+     ])
+    }),
+    scaredGesture: fromPromise<any,any>(async () => {
+      return Promise.all([
+        ScaredGesture(),
+        fhAudioSound("https://raw.githubusercontent.com/Anurni/xstate-furhat-starter/master/scream-3-244948.wav"),
+        fhAttendToUser(),
+        fhLed(200,0,0)
+      ])
+    }),
+   }
 }).createMachine({
   id: "root",
   initial: "Start",
   states: {
-    Start: { after: { 1000: "Next" } },
-    Next: {
+    Start: { after: { 1000: "Greet" } },
+    Greet: {
       invoke: {
         src: "fhHello",
-        input: null,
+        input: {message: "Hi there you beautiful thing! Tell me something."},
         onDone: {
-          target: "Recognised",
+          target: "Listen1",
           actions: ({ event }) => console.log(event.output),
-        },
+          },
         onError: {
           target: "Fail",
           actions: ({ event }) => console.error(event),
+          },
         },
       },
+  
+    Listen1: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Surprised",
+          actions: [({ event }) => console.log(event.output), assign({ lastResult: ({ event }) => event.output,}),
+            ]},
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+          },
+        },
+      },
+
+    Surprised: {
+      invoke: {
+        src : "fhGesture",
+        input: { message: "My oh my! That's so cool!" },
+        onDone: {
+          target:"Speak",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
     },
-    Recognised: {},
-    Fail: {},
   },
+
+    Speak: {
+      invoke: {
+        src: "fhSpeak",
+        input: { message: "Now tell me something scary please, since it's soon Halloween...!" },
+        onDone: {
+          target:"Listen2",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
+      }
+    },
+
+    Listen2: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Scared",
+          actions: [({ event }) => console.log(event.output), assign({ lastResult: ({ event }) => event.output,}),
+            ]},
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+          },
+        },
+      },
+
+    Scared : {
+      invoke: {
+        src: "scaredGesture",
+        onDone: {
+          target:"Recognised",
+          actions: ({ event }) => console.log(event.output)
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event)
+      }
+        }
+      },
+
+    Recognised: {},
+    Fail: {
+    },
+      }
 });
 
 const actor = createActor(dmMachine).start();
-console.log(actor.getSnapshot().value);
+console.log(`this is actor.getSnapshot().value --> ${actor.getSnapshot().value}`);
 
 actor.subscribe((snapshot) => {
-  console.log(snapshot.value);
+  console.log(`this is snapshot.value --> ${snapshot.value}`);
 });
