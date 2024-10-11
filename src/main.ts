@@ -9,28 +9,68 @@ async function fhSay(text: string) {
   return fetch(`http://${FURHATURI}/furhat/say?text=${encText}&blocking=true`, {
     method: "POST",
     headers: myHeaders,
-    body: "",
+    body: ""
   });
 }
 
-async function newGesture() {
+
+async function fhSound(url: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
-  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+  const encText = encodeURIComponent(url);
+  return fetch(`http://${FURHATURI}/furhat/say?url=${encText}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
+    body: ""
+  });
+}
+async function fhGetUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/users`, {
+    method: "GET",
+    headers: myHeaders,
+  })
+}
+async function fhAttend() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend?user=RANDOM`), {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify ({
+      enum : "RANDOM",
+    })
+  };
+}
+
+async function ListeningCarefully() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=true`, {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "newGesture",
+      name: "ListeningCarefully",
       frames: [
         {
-          time: [], //ADD THE TIME FRAME OF YOUR LIKING
+          time: [3.50,3.70], //ADD THE TIME FRAME OF YOUR LIKING
           persist: true,
-          params: {
-            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
+          params: {NECK_PAN : 20.0
           },
         },
         {
-          time: [], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
+          time : [3.50,3.75],
+          persist : true ,
+          params  :{ BROW_DOWN_LEFT : 0.7 ,
+                     BROW_DOWN_RIGHT : 0.7,
+                     EYE_SQUINT_LEFT : 0.7,
+                     EYE_SQUINT_RIGHT : 0.7
+
+          },
+        },
+        {
+          time: [3.80], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
           persist: true,
           params: {
             reset: true,
@@ -42,7 +82,40 @@ async function newGesture() {
     }),
   });
 }
-
+async function CrazyEyes() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "CrazyEyes",
+      frames: [
+        {
+          time: [3.30,3.45], //ADD THE TIME FRAME OF YOUR LIKING
+          persist: true,
+          params: { 
+            "LOOK_UP_LEFT" :0.8,
+            "LOOK_LEFT_LEFT": 0.85,
+            "LOOK_RIGHT_RIGHT" : 0.85,
+            "LOOK_UP_RIGHT" :0.8,
+            //"movement" : numbers (degree of movement )
+            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
+          },
+        },
+        {
+          time: [3.45], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+        //ADD MORE TIME FRAMES IF YOUR GESTURE REQUIRES THEM
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
 async function fhGesture(text: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -74,9 +147,37 @@ const dmMachine = setup({
     fhHello: fromPromise<any, null>(async () => {
       return fhSay("Hi");
     }),
+    Attend : fromPromise<any, null>(async () => {
+      return fhGetUser; 
+    }) ,
     fhL: fromPromise<any, null>(async () => {
-     return fhListen();
+     return Promise.all([
+      fhAttend() ,
+      fhListen(),
+      ListeningCarefully()
+      
+     ])
    }),
+   CrazyEyes: fromPromise<any, null>(async () => {
+    return CrazyEyes();
+  }),
+  ListenCarefully: fromPromise<any, null>(async () => {
+    return ListeningCarefully();
+   }),
+   fhSpeakG: fromPromise<any, { text: string }>(async ({ input }) => {
+    return Promise.all([
+      fhAttend() ,
+      fhSay(input.text),
+      CrazyEyes(),
+    ]);
+  }),
+  fhSound : fromPromise<any, null> (async () => {
+    return fromPromise.call([
+      fhGesture('Shake'),
+      fhSound("https://cvws.icloud-content.com/B/AUbG2FJvYs-9g6DbOWqY5viZ42KCAXBP6_xWKCKYcisiQJXlUuPTD6ZR/110853-Male_mouth_makes_tch_tch_tch_sound_effect-Nightingale_Music_Productions-12655.wav?o=Aqd3OCCNmgCH7uwsn840ToJ3Xu-l3s9uSkSp4p8W2AzO&v=1&x=3&a=CAogAZqtkW8uaqPQlNIUx2MZw-sEhs7Em7mLY-Bjc3CBPvwSbxDErcewpzIYxIqjsqcyIgEAUgSZ42KCWgTTD6ZRaieFrf4KIAchWfoNvEwwZrGoNUdE0v9xwQwj-lyfPM_G0wg03E6jR1ZyJ1fwqVIIJJH4d3V72BGIB6yWR8_Cy4CCmOOo8Z5pGDuP6a8zqxag1Q&e=1728561333&fl=&r=00cac991-f392-4db8-a910-0867450ea24c-1&k=ppPiCKo3vSx0jrhdZNqC2Q&ckc=com.apple.clouddocs&ckz=com.apple.CloudDocs&p=62&s=j3P5HczWhXQSF6IuSei_SHFWICE&cd=i"),
+      fhAttend()
+    ])
+  })
   },
 }).createMachine({
   id: "root",
@@ -84,11 +185,24 @@ const dmMachine = setup({
   states: {
     Start: { after: { 1000: "Next" } },
     Next: {
+      invoke : {
+        src : "Attend",
+        onDone : {
+          target : "Go",
+          actions: ({ event }) => console.log(event.output),
+        } ,
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      }
+    },
+    Go : {
       invoke: {
-        src: "fhHello",
-        input: null,
+        src: "fhSpeakG",
+        input: {text : "Hello, can you do this?"},
         onDone: {
-          target: "Recognised",
+          target : "Hello",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -97,7 +211,30 @@ const dmMachine = setup({
         },
       },
     },
-    Recognised: {},
+    Hello: {
+      invoke: {
+        src: "fhL",
+        onDone: {
+          target: "Recognised",
+          actions: [({ event }) => console.log(event.output),
+            assign({ 
+              lastResult: ({ event }) => event.output,
+            }),
+        ]},
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Recognised: {
+      invoke : {
+        src : "fhSound",
+        onDone: {
+          target : "Fail"
+        }
+      }
+    },
     Fail: {},
   },
 });
