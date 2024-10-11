@@ -13,6 +13,7 @@ async function fhSay(text: string) {
   });
 }
 
+
 async function fhSound(url: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -147,7 +148,7 @@ const dmMachine = setup({
       return fhSay("Hi");
     }),
     Attend : fromPromise<any, null>(async () => {
-      return fhAttend(); 
+      return fhGetUser; 
     }) ,
     fhL: fromPromise<any, null>(async () => {
      return Promise.all([
@@ -184,6 +185,19 @@ const dmMachine = setup({
   states: {
     Start: { after: { 1000: "Next" } },
     Next: {
+      invoke : {
+        src : "Attend",
+        onDone : {
+          target : "Go",
+          actions: ({ event }) => console.log(event.output),
+        } ,
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      }
+    },
+    Go : {
       invoke: {
         src: "fhSpeakG",
         input: {text : "Hello, can you do this?"},
