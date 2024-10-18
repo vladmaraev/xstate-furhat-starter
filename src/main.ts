@@ -1,6 +1,6 @@
 import { setup, createActor, fromPromise, assign } from "xstate";
 
-const FURHATURI = "127.0.0.1:54321";
+const FURHATURI = "192.168.1.11:54321";//"127.0.0.1:54321";
 
 async function fhSay(text: string) {
   const myHeaders = new Headers();
@@ -181,6 +181,17 @@ async function shakinghead() {
 }
 
 
+async function fhGetUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/users`, {
+    method: "GET",
+    headers: myHeaders,
+  })
+}
+
+
+
 async function AttendToUser() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -329,6 +340,7 @@ const dmMachine = setup({
     fhHello: fromPromise<any, null>(async () => {
       return Promise.all([
         fhSay("Hello"),
+        fhGetUser(),
         AttendToUser()]);
     }),
     fhL: fromPromise<any, null>(async () => {
@@ -342,6 +354,8 @@ const dmMachine = setup({
       newGesture(),
       AttendToUser]);
   }),
+
+  
 
   disappointges : fromPromise<any, null>(async () => {
     return Promise.all([
