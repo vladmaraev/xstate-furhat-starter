@@ -24,6 +24,29 @@ async function fhSay(text: string) {
   });
 }
 
+async function fhGesture(name:string) {
+  return fetch(`http://${FURHATURI}/furhat/gesture?name=${name}&blocking=false`, {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+}
+
+async function initFaceEngine() {
+  console.log("🧠 Initializing FaceEngine...");
+  await fetch(`http://${FURHATURI}/furhat/face`, {
+    method: "POST",
+    headers: { "accept": "application/json" },
+    body: JSON.stringify({
+      mask: "adult",
+      character: "Yi",
+    }),
+  });
+  console.log("FaceEngine activated");
+  await fhGesture("Blink");
+  await new Promise((r) => setTimeout(r, 1000));
+  console.log("😄 FaceEngine ready.");
+}
+
 // Implement user-tracking for Furhat to attend to the user.
 async function fhAttendUser() {
   const myHeaders = new Headers();
@@ -35,35 +58,72 @@ async function fhAttendUser() {
   });
 }
 
-// Gesture1: Eye Roll
+// Gesture1
 async function fhBrowRaise() {
+  console.log("Performing BrowRaise gesture for Yi...");
+  const res = await fetch(`http://${FURHATURI}/furhat/gesture?blocking=true`, {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: "BrowRaise_Yi",
+      frames: [
+        {
+          time: [0.0],
+          params: {
+            browUpLeft: 1.0,
+            browUpRight: 1.0,
+            eyeSquintLeft: 0.3,
+            eyeSquintRight: 0.3,
+            gazePitch: -10.0,  
+          },
+        },
+        {
+          time: [1.0],
+          params: {
+            browUpLeft: 0.0,
+            browUpRight: 0.0,
+            eyeSquintLeft: 0.0,
+            eyeSquintRight: 0.0,
+            gazePitch: 0.0,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+
+  console.log("BrowRaise HTTP result:", res.status, res.statusText);
+  return res;
+}
+
+
+
+
+
+// Gesture2
+async function fhNod() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "BrowRaise",
+      name: "HeadNod",
       frames: [
         {
-          time: [0.0], 
-          params: {
-            BROW_UP_LEFT: 1.0,
-            BROW_UP_RIGHT: 1.0
-          }
+          time: [0.0],
+          params: { NECK_TILT: 10.0 },
         },
         {
-          time: [0.8], 
-          params: {
-            BROW_UP_LEFT: 0.0,
-            BROW_UP_RIGHT: 0.0
-          },
+          time: [0.5],
+          params: { NECK_TILT: -10.0 },
         },
         {
-          time: [1.2],
-          params: {
-            reset: true
-          },
+          time: [1.0],
+          params: { NECK_TILT: 0.0 },
         },
       ],
       class: "furhatos.gestures.Gesture",
@@ -71,48 +131,6 @@ async function fhBrowRaise() {
   });
 }
 
-// Gesture2: Shake Head
-async function fhNod() {
-  const myHeaders = new Headers();
-  myHeaders.append("accept", "application/json");
-  return fetch(
-    `http://${FURHATURI}/furhat/gesture?blocking=false`,
-    {
-      method: "POST",
-      headers: myHeaders,
-      body: JSON.stringify({
-        name: "Nod",
-        frames: [
-          {
-            time: [0.0],
-            params: {
-              GAZE_PITCH: -10.0
-            }
-          },
-          {
-            time: [0.4],
-            params: {
-              GAZE_PITCH: 10.0
-            }
-          },
-          {
-            time: [0.8],
-            params: {
-              GAZE_PITCH: 0.0
-            }
-          },
-          {
-            time: [1.2],
-            params: {
-              reset: true
-            },
-          },
-        ],
-        class: "furhatos.gestures.Gesture",
-      }),
-    },
-  );
-}
 
 // Gesture3: Sound Gesture
 async function fhSoundGesture() {
@@ -194,7 +212,9 @@ const dmMachine = setup({
         await fhSay("I can see you.");
 
         await fhBrowRaise();
+        await new Promise(r => setTimeout(r, 1500));
         await fhSay("Did you see me raise my eyebrows?");
+        await new Promise(r => setTimeout(r, 500));
 
         await fhNod();
         await fhSay("Now I am nodding my head!");
@@ -229,10 +249,3 @@ actor.subscribe((snapshot) => {
 });
 
 
-
-(async () => {
-  console.log("Testing BrowRaise and Nod gestures...");
-  await fhBrowRaise();
-  await new Promise(r => setTimeout(r, 1500));
-  await fhNod();
-})();
