@@ -60,44 +60,43 @@ async function fhAttendUser() {
 
 // Gesture1
 async function fhBrowRaise() {
-  console.log("Performing BrowRaise gesture for Yi...");
-  const res = await fetch(`http://${FURHATURI}/furhat/gesture?blocking=true`, {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
     method: "POST",
-    headers: {
-      "accept": "application/json",
-      "Content-Type": "application/json"
-    },
+    headers: myHeaders,
     body: JSON.stringify({
-      name: "BrowRaise_Yi",
+      name: "BrowRaise",
       frames: [
         {
-          time: [0.0],
+          time: 0.0,
           params: {
-            browUpLeft: 1.0,
-            browUpRight: 1.0,
-            eyeSquintLeft: 0.3,
-            eyeSquintRight: 0.3,
-            gazePitch: -10.0,  
+            BROW_UP_LEFT: 1.0,
+            BROW_UP_RIGHT: 1.0,
+            EYE_SQUINT_LEFT: 0.2,
+            EYE_SQUINT_RIGHT: 0.2,
+            MOUTH_SMILE_LEFT: 0.3,
+            MOUTH_SMILE_RIGHT: 0.3
           },
         },
         {
-          time: [1.0],
+          time: 1.0,
           params: {
-            browUpLeft: 0.0,
-            browUpRight: 0.0,
-            eyeSquintLeft: 0.0,
-            eyeSquintRight: 0.0,
-            gazePitch: 0.0,
+            BROW_UP_LEFT: 0.0,
+            BROW_UP_RIGHT: 0.0,
+            EYE_SQUINT_LEFT: 0.0,
+            EYE_SQUINT_RIGHT: 0.0,
+            MOUTH_SMILE_LEFT: 0.0,
+            MOUTH_SMILE_RIGHT: 0.0
           },
         },
       ],
       class: "furhatos.gestures.Gesture",
     }),
   });
-
-  console.log("BrowRaise HTTP result:", res.status, res.statusText);
-  return res;
 }
+
 
 
 
