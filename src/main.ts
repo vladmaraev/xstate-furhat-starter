@@ -24,48 +24,115 @@ async function fhSay(text: string) {
   });
 }
 
-async function newGesture() {
+// Implement user-tracking for Furhat to attend to the user.
+async function fhAttendUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend/user/nearest`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+// Gesture1: Eye Roll
+async function fhBrowRaise() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "newGesture",
+      name: "BrowRaise",
       frames: [
         {
-          time: [], //ADD THE TIME FRAME OF YOUR LIKING
-          persist: true,
+          time: [0.0], 
           params: {
-            //ADD PARAMETERS HERE IN ORDER TO CREATE A GESTURE
+            BROW_UP_LEFT: 1.0,
+            BROW_UP_RIGHT: 1.0
+          }
+        },
+        {
+          time: [0.8], 
+          params: {
+            BROW_UP_LEFT: 0.0,
+            BROW_UP_RIGHT: 0.0
           },
         },
         {
-          time: [], //ADD TIME FRAME IN WHICH YOUR GESTURE RESETS
-          persist: true,
+          time: [1.2],
           params: {
-            reset: true,
+            reset: true
           },
         },
-        //ADD MORE TIME FRAMES IF YOUR GESTURE REQUIRES THEM
       ],
       class: "furhatos.gestures.Gesture",
     }),
   });
 }
 
-async function fhGesture(text: string) {
+// Gesture2: Shake Head
+async function fhNod() {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
   return fetch(
-    `http://${FURHATURI}/furhat/gesture?name=${text}&blocking=true`,
+    `http://${FURHATURI}/furhat/gesture?blocking=false`,
     {
       method: "POST",
       headers: myHeaders,
-      body: "",
+      body: JSON.stringify({
+        name: "Nod",
+        frames: [
+          {
+            time: [0.0],
+            params: {
+              GAZE_PITCH: -10.0
+            }
+          },
+          {
+            time: [0.4],
+            params: {
+              GAZE_PITCH: 10.0
+            }
+          },
+          {
+            time: [0.8],
+            params: {
+              GAZE_PITCH: 0.0
+            }
+          },
+          {
+            time: [1.2],
+            params: {
+              reset: true
+            },
+          },
+        ],
+        class: "furhatos.gestures.Gesture",
+      }),
     },
   );
 }
+
+// Gesture3: Sound Gesture
+async function fhSoundGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "SoundGesture",
+      frames: [
+        { time: [0.0], params: {Smile: 0.4 } },
+        { time: [0.4], params: { AudioFile: "Click.wav" } },
+        { time: [0.8], params: {Smile: 0.0 } },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
 
 async function fhListen() {
   const myHeaders = new Headers();
@@ -83,13 +150,22 @@ async function fhListen() {
 const dmMachine = setup({
   actors: {
     fhVoice: fromPromise<any, null>(async () => {
-      return fhVoice("en-US-EchoMultilingualNeural");
+      return fhVoice("Joanna");
     }),
     fhHello: fromPromise<any, null>(async () => {
-      return fhSay("Hi");
+      return fhSay("Hi there!");
     }),
     fhL: fromPromise<any, null>(async () => {
      return fhListen();
+   }),
+   fhBrowRaise: fromPromise<any, null>(async () => {
+    return fhBrowRaise();
+   }),
+   fhNod: fromPromise<any, null>(async () => {
+    return fhNod();
+   }),
+   fhAttendUser: fromPromise<any, null>(async () => {
+    return fhAttendUser();
    }),
   },
 }).createMachine({
@@ -102,7 +178,7 @@ const dmMachine = setup({
         src: "fhHello",      
         input: null,
         onDone: {
-          target: "Listen",
+          target: "Demo",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -111,8 +187,36 @@ const dmMachine = setup({
         },
       },
     },
-    Listen: {
+    Demo: {
+      entry: async () => {
+        console.log("Running PartA demonstration");
+        await fhAttendUser();
+        await fhSay("I can see you.");
+
+        await fhBrowRaise();
+        await fhSay("Did you see me raise my eyebrows?");
+
+        await fhNod();
+        await fhSay("Now I am nodding my head!");
+
+        await fhSay("Okay, now I will listen to you.");
+      },
+      after: { 1000: "Listen" },
     },
+
+    Listen: {
+      invoke: {
+        src: "fhL",
+        input: null,
+        onDone: {
+          target: "End",
+          actions: ({ event }) => {
+            console.log("User said:", event.output);
+          },
+        },
+      },
+    },
+    End: { type: "final" },
     Fail: {},
   },
 });
@@ -124,3 +228,11 @@ actor.subscribe((snapshot) => {
   console.log(snapshot.value);
 });
 
+
+
+(async () => {
+  console.log("Testing BrowRaise and Nod gestures...");
+  await fhBrowRaise();
+  await new Promise(r => setTimeout(r, 1500));
+  await fhNod();
+})();
