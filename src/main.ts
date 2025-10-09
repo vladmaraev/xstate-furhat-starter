@@ -1,4 +1,4 @@
-import { setup, createActor, fromPromise, assign } from "xstate";
+import { setup, createActor, fromPromise, assign, waitFor } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
@@ -98,10 +98,6 @@ async function fhBrowRaise() {
 }
 
 
-
-
-
-
 // Gesture2
 async function fhNod() {
   const myHeaders = new Headers();
@@ -139,14 +135,44 @@ async function fhSoundGesture() {
     method: "POST",
     headers: myHeaders,
     body: JSON.stringify({
-      name: "SoundGesture",
+      name: "ConfusedWithSound",
       frames: [
-        { time: [0.0], params: {Smile: 0.4 } },
-        { time: [0.4], params: { AudioFile: "Click.wav" } },
-        { time: [0.8], params: {Smile: 0.0 } },
+        {
+          time: 0.0,
+          params: {
+            BROW_DOWN_LEFT: 0.8,
+            BROW_DOWN_RIGHT: 0.8,
+            MOUTH_FROWN_LEFT: 0.3,
+            MOUTH_FROWN_RIGHT: 0.3,
+            NECK_ROLL: 10.0,
+          },
+        },
+        {
+          time: 0.5,
+          params: { BLINK_LEFT: 1.0, BLINK_RIGHT: 1.0 },
+        },
+        {
+          time: 1.0,
+          params: {
+            BLINK_LEFT: 0.0,
+            BLINK_RIGHT: 0.0,
+            BROW_DOWN_LEFT: 0.5,
+            BROW_DOWN_RIGHT: 0.5,
+          },
+        },
+        {
+          time: 1.5,
+          params: { reset: true },
+        },
       ],
       class: "furhatos.gestures.Gesture",
     }),
+  });
+  await fetch(`http://${FURHATURI}/furhat/say?url=${encodeURIComponent(
+    "https://furhat-files.s3.eu-west-1.amazonaws.com/sounds/hmm.wav"
+  )}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
   });
 }
 
@@ -184,6 +210,9 @@ const dmMachine = setup({
    fhAttendUser: fromPromise<any, null>(async () => {
     return fhAttendUser();
    }),
+   fhSoundGesture: fromPromise<any, null>(async () => {
+    return fhSoundGesture();
+   }),
   },
 }).createMachine({
   id: "root",
@@ -217,6 +246,11 @@ const dmMachine = setup({
 
         await fhNod();
         await fhSay("Now I am nodding my head!");
+        await new Promise(r => setTimeout(r, 1500));
+
+        await fhSoundGesture();
+        await fhSay("Hmm? What do you mean?");
+        await new Promise(r => setTimeout(r, 1500));
 
         await fhSay("Okay, now I will listen to you.");
       },
