@@ -1,3 +1,4 @@
+## Lab3 report
 I implemented three gestures and integrated them into a short demonstration dialogue. The gestures included BrowRaise, HeadNod, and a sound-based gesture called ConfusedWithSound.
 
 During development, there were several technical issues. Initially, the robot produced no sound when speaking or playing gestures. I realized that the problem was related to the voice configuration, so I switched to a different voice (“Joanna”). Then this issue was solved.
