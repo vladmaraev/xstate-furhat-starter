@@ -2,6 +2,11 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 
 const FURHATURI = "127.0.0.1:54321";
 
+type DMContext = {
+  message1: string,
+  message2: string,
+}
+
 async function fhVoice(name: string) {
   const myHeaders = new Headers();
   myHeaders.append("accept", "application/json");
@@ -234,6 +239,9 @@ async function fhAttendUser() {
 }
 
 const dmMachine = setup({
+  types: {
+    context: {} as DMContext,
+    },
   actors: {
     fhVoice: fromPromise<any, null>(async () => {
       return fhVoice("en-US-EchoMultilingualNeural");
@@ -242,30 +250,41 @@ const dmMachine = setup({
       return fhSay("Hi");
     }),
     fhL: fromPromise<any, null>(async () => {
-     return fhListen();
-   }),
-   fhBigSmile: fromPromise<any, null>(async () => {
-     return fhBigSmile();
-   }),
-   fhBigSurprise: fromPromise<any, null>(async () => {
-     return fhBigSurprise();
-   }),
-   fhDisagree: fromPromise<any, null>(async () => {
-     return fhDisagree();
-   }),
-   fhAngerWithSound: fromPromise<any, null>(async () => {
-     return Promise.all ([
-     fhSound('https://raw.githubusercontent.com/guscaroot/xstate-furhat-starter/master/src/grrr-137901.wav'),
-     fhGesture("ExpressAnger")])
-   }),
-   fhGetUser: fromPromise<any, null>(async () => {
-     return fhGetUser();
-   }),
-   fhAttendUser: fromPromise<any, null>(async () => {
-     return fhAttendUser();
-   }),
+      return fhListen();
+    }),
+    fhBigSmile: fromPromise<any, null>(async () => {
+      return fhBigSmile();
+    }),
+    fhBigSurprise: fromPromise<any, null>(async () => {
+      return fhBigSurprise();
+    }),
+    fhDisagree: fromPromise<any, null>(async () => {
+      return fhDisagree();
+    }),
+    fhAngerWithSound: fromPromise<any, null>(async () => {
+      return Promise.all ([
+        fhSound('https://raw.githubusercontent.com/guscaroot/xstate-furhat-starter/master/src/grrr-137901.wav'),
+        fhGesture("ExpressAnger")
+      ])
+    }),
+    fhGetUser: fromPromise<any, null>(async () => {
+      return fhGetUser();
+    }),
+    fhAttendUser: fromPromise<any, null>(async () => {
+      return fhAttendUser();
+    }),
+    fhReally: fromPromise<any, string>(async (context) => {
+      return fhSay("Really?");
+    }),
+    fhNoWay: fromPromise<any, string>(async (context) => {
+      return fhSay("No way! I'm not going!");
+    }),
   },
 }).createMachine({
+  context: { 
+    message1: "Really?",
+    message2: "No way! I'm not going!" 
+  },
   id: "root",
   initial: "Start",
   states: {
@@ -303,7 +322,7 @@ const dmMachine = setup({
         src: "fhAttendUser",      
         input: null,
         onDone: {
-          target: "BigSurprise",
+          target: "Listen1",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -331,7 +350,7 @@ const dmMachine = setup({
         src: "fhBigSurprise",      
         input: null,
         onDone: {
-          target: "WaitAfterBigSurprise",
+          target: "Speak1",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -348,7 +367,7 @@ const dmMachine = setup({
         src: "fhDisagree",      
         input: null,
         onDone: {
-          target: "WaitAfterDisagree",
+          target: "Speak2",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -365,7 +384,7 @@ const dmMachine = setup({
         src: "fhAngerWithSound",      
         input: null,
         onDone: {
-          target: "Listen",
+          target: "Done",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
@@ -374,8 +393,63 @@ const dmMachine = setup({
         },
       },
     },
-    Listen: {
+    Listen1: {  // here the user says "Hey! Guess what? I'm going to karaoke tonight!"
+      invoke: {
+        src: "fhL",      
+        input: null,
+        onDone: {
+          target: "BigSurprise",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
     },
+    Speak1: {
+      invoke: {
+        src: "fhReally",      
+        input: null,
+        onDone: {
+          target: "Listen2",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Listen2: {  // here the user says "And you're coming with me!"
+      invoke: {
+        src: "fhL",      
+        input: null,
+        onDone: {
+          target: "Disagree",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Speak2: {
+      invoke: {
+        src: "fhNoWay",      
+        input: null,
+        onDone: {
+          target: "Done",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Done: {},
     Fail: {},
   },
 });
