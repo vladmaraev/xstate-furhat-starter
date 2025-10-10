@@ -213,6 +213,26 @@ async function fhListen() {
     .then((value) => JSON.parse(new TextDecoder().decode(value)).message);
 }
 
+async function fhGetUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/users`, {
+    method: "GET",
+    headers: myHeaders,
+    //body:"",
+  });
+}
+
+async function fhAttendUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({enum: "CLOSEST"}),
+  });
+}
+
 const dmMachine = setup({
   actors: {
     fhVoice: fromPromise<any, null>(async () => {
@@ -238,6 +258,12 @@ const dmMachine = setup({
      fhSound('https://raw.githubusercontent.com/guscaroot/xstate-furhat-starter/master/src/grrr-137901.wav'),
      fhGesture("ExpressAnger")])
    }),
+   fhGetUser: fromPromise<any, null>(async () => {
+     return fhGetUser();
+   }),
+   fhAttendUser: fromPromise<any, null>(async () => {
+     return fhAttendUser();
+   }),
   },
 }).createMachine({
   id: "root",
@@ -247,6 +273,34 @@ const dmMachine = setup({
     Next: {
       invoke: {
         src: "fhHello",      
+        input: null,
+        onDone: {
+          target: "GetUser",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    GetUser: {
+      invoke: {
+        src: "fhGetUser",      
+        input: null,
+        onDone: {
+          target: "AttendUser",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    AttendUser: {
+      invoke: {
+        src: "fhAttendUser",      
         input: null,
         onDone: {
           target: "BigSurprise",
