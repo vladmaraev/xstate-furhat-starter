@@ -279,11 +279,14 @@ const dmMachine = setup({
     fhNoWay: fromPromise<any, string>(async (context) => {
       return fhSay("No way! I'm not going!");
     }),
+    fhSay: fromPromise<any, string>(async ({input}) => {
+      return fhSay(input);
+    }),
   },
 }).createMachine({
   context: { 
     message1: "Really?",
-    message2: "No way! I'm not going!" 
+    message2: "No way! I'm not going!",
   },
   id: "root",
   initial: "Start",
@@ -377,7 +380,7 @@ const dmMachine = setup({
       },
     },
     WaitAfterDisagree: {
-      after: { 3000: "Anger" },
+      after: { 1000: "Anger" },
     },
     Anger: {
       invoke: {
@@ -409,8 +412,8 @@ const dmMachine = setup({
     },
     Speak1: {
       invoke: {
-        src: "fhReally",      
-        input: null,
+        src: "fhSay",      
+        input: (({context}) => context.message1), // "Really?"
         onDone: {
           target: "Listen2",
           actions: ({ event }) => console.log(event.output),
@@ -421,7 +424,7 @@ const dmMachine = setup({
         },
       },
     },
-    Listen2: {  // here the user says "And you're coming with me!"
+    Listen2: {  // here the user says "Yeah! And you're coming with me!"
       invoke: {
         src: "fhL",      
         input: null,
@@ -437,10 +440,24 @@ const dmMachine = setup({
     },
     Speak2: {
       invoke: {
-        src: "fhNoWay",      
+        src: "fhSay",      
+        input: ({context}) => context.message2, // "No way! I'm not going!"
+        onDone: {
+          target: "Listen3",
+          actions: ({ event }) => console.log(event.output),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+    Listen3: {  // here the user says "Then I'll never speak to you again!"
+      invoke: {
+        src: "fhL",      
         input: null,
         onDone: {
-          target: "Done",
+          target: "Anger",
           actions: ({ event }) => console.log(event.output),
         },
         onError: {
