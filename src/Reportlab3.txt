@@ -1,0 +1,49 @@
+
+Report 
+
+Getting started
+
+Had some trouble with receiving the Furhat SDK. Completed the lab using Xstate, but in hindsight it might have been more useful to use the Kotlin Skill API, to be able to reference the documentation more easily. Had trouble using Blockly, because of a reoccurring connection error. 
+
+Part A
+
+1. New Gestures
+
+I implemented two gestures: an approving and disapproving facial expression. I played around with the parameters and used the MySmile gesture (https://docs.furhat.io/gestures/) as a starter. In the documentation there is information about iteration (in the Wink gesture). I tried to implement this in the head movements of the gestures, but I had some trouble with translating the Kotlin code to our Xstate code. It's quite tricky to get the timings of the different elements within a gesture right, as well as the timings of the gestures between state transitions. I implemented pauses of 3 or 5 seconds in the dialogue to make sure there's minimal overlap.
+
+2. User-tracking
+
+It took me some time to figure out we were not supposed to give Furhat camera access and that the SDK does not allow for this either. After discussing with the TA and some classmates I figured out how to implement the attending function. It now picks the first user out of the users array, so it automatically focuses on the closest user. This could also have been done with the CLOSEST 'keyword'. It currently does not check if this user is also engaged in the conversation (but geography is riveting after all so I assume anyone would be). 
+
+3. Demonstration dialogue
+
+You can have the following dialogue, a geography quiz, with this Furhat implementation: 
+
+Furhat: Hello there, userx!
+User: Hello
+Furhat: What is the capital of France?
+User: *silence*
+Furhat: I didn't catch that, let's try again.
+Furhat: What is the capital of France?
+User: Berlin 
+Furhat: Terrible! Incorrect! Let's try again + disapprove gesture
+Furhat: What is the capital of France?
+User: Paris
+Furhat: Good job, correct! + approve gesture 
+Furhat: What is the capital of Germany?
+User: Berlin 
+Furhat: Good job, correct! + approve gesture 
+Furhat: Surprisal + chicken noises
+
+The approving and disapproving gestures are accompanied by speech. This seemed more natural than separating the two. The conversation accounts for wrong answers and silences from the user. However, it is quite rigid in what the user can answer (only single-word answers) and inefficient in terms of states. As mentioned before, there are many pauses to ensure a somewhat smooth dialogue and to avoid overlapping of gestures or utterances. Something I struggled with is that it seems some voices (from the web interface) work more consistently than others. 
+
+
+4. Gesture with audio
+
+Both the approving and disapproving gesture occur with speech in the dialogue. I implemented another gesture with that expresses surprisal and occurs with audio. The fhSurprisewithSound actor returns two functions, one for sound and one for the gesture. This is similar to the other actors for approving and disapproving, that return the expression gesture and the fhSay gesture. The input for all three is given in the state in which they are invoked. I have an intuition that that could be done more elegantly. 
+
+
+
+
+
+
