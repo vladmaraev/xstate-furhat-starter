@@ -12,3 +12,4 @@
 !.yarn/cache
 #.pnp.*
 .yarn/cache
+src/azure.ts

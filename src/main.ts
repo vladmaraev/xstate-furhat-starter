@@ -3,85 +3,20 @@ import { setup, createActor, fromPromise, assign } from "xstate";
 const FURHATURI = "127.0.0.1:54321";
 const OLLAMA_API_URL = "http://localhost:11434/api/chat";
 
-// Types
-type Message = { // LLM dialogue structure. The system will constantly change between these roles at each turn.
-  role: "assistant" | "user" | "system"; // system is a sole actor. Assistant is the LLM. User is us.
-  content: string;
-};
-
-interface DMContext { // Our regular DMContext types.
+interface DMContext {
   lastResult: string;
-  extractedPerson: string; // The X in "I want X to jump", the extracted person.
+  extractedGesture: string;
   messages: Message[];
-  isFirstMessage: boolean; // If the message is the first message.
+  isFirstMessage: boolean;
 }
 
-// Furhat API functions
-async function fhVoice(name: string) { // fh functions are fetched from Furhat's URI. They are ready-made functions.
-  const myHeaders = new Headers();
-  myHeaders.append("accept", "application/json");
-  const encName = encodeURIComponent(name);
-  return fetch(`http://${FURHATURI}/furhat/voice?name=${encName}`, {
-    method: "POST",
-    headers: myHeaders,
-    body: "",
-  });
-}
+type Message = { role: "assistant" | "user" | "system"; content: string };
 
-async function fhSay(text: string, isFirstMessage: boolean = false) { 
-  const myHeaders = new Headers();
-  myHeaders.append("accept", "application/json");
-  const encText = encodeURIComponent(text);
-  await fetch(`http://${FURHATURI}/furhat/say?text=${encText}&blocking=true`, {
-    method: "POST",
-    headers: myHeaders,
-    body: "",
-  });
-  
-  // 10 second delay for first message (long introduction), 1 second for others
-  const delay = isFirstMessage ? 15000 : 1000; // Bora's bandaid solution It let's you wait 15 secs after the first (explaining) turn of Furhat--Good old timeout on the first state.
-  await new Promise(resolve => setTimeout(resolve, delay));
-}
+// ---------- OLLAMA CHAT COMPLETION ----------
 
-const timer = fromPromise(
-  ({ input }: { input: { ms: number } }) =>
-    new Promise((resolve) => setTimeout(resolve, input.ms))
-);
-
-
-async function fhAttendUser() { // This is about GAZE.
-  const myHeaders = new Headers();
-  myHeaders.append("accept", "application/json");
-  return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, { // Look at documentation (https://docs.furhat.io/remote-api/) in the "Attend" section
-    /*
-    # Attend the user closest to the robot
-    furhat.attend(user="CLOSEST") 
-
-    There are other attend options in the doc.
-    */
-    method: "POST",
-    headers: myHeaders,
-    body: "",
-  });
-}
-
-async function fhListen(): Promise<string> { // Furhat's own ASR.
-  const myHeaders = new Headers();
-  myHeaders.append("accept", "application/json");
-  return fetch(`http://${FURHATURI}/furhat/listen`, {
-    method: "GET",
-    headers: myHeaders,
-  })
-    .then((response) => response.body)
-    .then((body) => body!.getReader().read())
-    .then((reader) => reader.value)
-    .then((value) => JSON.parse(new TextDecoder().decode(value!)).message);
-}
-
-// Ollama API function
 async function fetchChatCompletion(messages: Message[]): Promise<string> {
   console.log("Calling Ollama with messages:", messages);
-  
+
   try {
     const response = await fetch(OLLAMA_API_URL, {
       method: "POST",
@@ -100,10 +35,10 @@ async function fetchChatCompletion(messages: Message[]): Promise<string> {
       console.error("Ollama API error:", response.status, errorText);
       throw new Error(`Ollama API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log("Ollama response:", data);
-    
+
     const assistantMessage = data.message.content;
     return assistantMessage;
   } catch (error) {
@@ -112,24 +47,330 @@ async function fetchChatCompletion(messages: Message[]): Promise<string> {
   }
 }
 
-// Helper function to extract person from decision
-function extractPersonFromDecision(utterance: string): string | null {
-  const lower = utterance.toLowerCase().trim();
-  const wantToJumpMatch = lower.match(/\bi\s+want\s+(?:the\s+)?(.+?)\s+to\s+jump\b/);
-  if (wantToJumpMatch) {
-    const person = wantToJumpMatch[1].trim();
-    return person;
+// ---------- FURHAT HELPERS ----------
+
+async function fhVoice(name: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encName = encodeURIComponent(name);
+  return fetch(`http://${FURHATURI}/furhat/voice?name=${encName}`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+async function fhSay(text: string, isFirstMessage: boolean = false) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encText = encodeURIComponent(text);
+
+  return fetch(`http://${FURHATURI}/furhat/say?text=${encText}&blocking=true`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+// ---------- GESTURE FUNCTIONS ----------
+
+async function angryGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "angryGesture",
+      frames: [
+        {
+          time: [0.3],
+          persist: true,
+          params: {
+            BROW_UP_RIGHT: -5.0,
+            BROW_UP_LEFT: -5.0,
+            LOOK_UP_LEFT: 4.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [1.5],
+          persist: true,
+          params: {
+            NECK_TILT: -5.0,
+            NECK_PAN: 5.0,
+            BROW_UP_RIGHT: 0.7,
+            LOOK_UP_LEFT: 5.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function seriousGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "seriousGesture",
+      frames: [
+        {
+          time: [0.3],
+          persist: true,
+          params: {
+            NECK_TILT: -15.0,
+            NECK_PAN: 10.0,
+            BROW_UP_RIGHT: 5.0,
+            LOOK_UP_LEFT: 4.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [1.5],
+          persist: true,
+          params: {
+            NECK_TILT: -15.0,
+            NECK_PAN: 12.0,
+            BROW_UP_RIGHT: 0.7,
+            LOOK_UP_LEFT: 5.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function kiddingGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "kiddingGesture",
+      frames: [
+        {
+          time: [0.3],
+          persist: true,
+          params: {
+            NECK_TILT: -15.0,
+            NECK_PAN: 10.0,
+            BROW_UP_RIGHT: 5.0,
+            LOOK_UP_LEFT: 4.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [1.5],
+          persist: true,
+          params: {
+            NECK_TILT: -15.0,
+            NECK_PAN: 12.0,
+            BROW_UP_RIGHT: 0.7,
+            LOOK_UP_LEFT: 5.0,
+            LOOK_UP_RIGHT: 5.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function thinkingGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "thinkingGesture",
+      frames: [
+        {
+          time: [0.3],
+          persist: true,
+          params: {
+            BROW_DOWN_LEFT: 4.0,
+            BROW_DOWN_RIGHT: 4.0,
+          },
+        },
+        {
+          time: [1.0],
+          persist: true,
+          params: {
+            NECK_TILT: 10.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function happyGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "happyGesture",
+      frames: [
+        {
+          time: [0.5],
+          persist: true,
+          params: {
+            SMILE: 5.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+async function sadGesture() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/gesture?blocking=false`, {
+    method: "POST",
+    headers: myHeaders,
+    body: JSON.stringify({
+      name: "sadGesture",
+      frames: [
+        {
+          time: [0.5],
+          persist: true,
+          params: {
+            SMILE: -5.0,
+            BROW_DOWN_LEFT: 3.0,
+            BROW_DOWN_RIGHT: 3.0,
+          },
+        },
+        {
+          time: [2.0],
+          persist: true,
+          params: {
+            reset: true,
+          },
+        },
+      ],
+      class: "furhatos.gestures.Gesture",
+    }),
+  });
+}
+
+// Generic gesture by name (not used in machine, but kept if you want it)
+async function fhGesture(name: string) {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  const encName = encodeURIComponent(name);
+  return fetch(
+    `http://${FURHATURI}/furhat/gesture?name=${encName}&blocking=true`,
+    {
+      method: "POST",
+      headers: myHeaders,
+      body: "",
+    },
+  );
+}
+
+// ---------- LISTEN & ATTEND ----------
+
+async function fhListen() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/listen`, {
+    method: "GET",
+    headers: myHeaders,
+  })
+    .then((response) => response.body)
+    .then((body) => body!.getReader().read())
+    .then((reader) => reader.value)
+    .then((value) => JSON.parse(new TextDecoder().decode(value)).message);
+}
+
+const availableGestures: Array<string> = [
+  "angry",
+  "kidding",
+  "serious",
+  "thinking",
+  "happy",
+  "sad",
+];
+
+// Extracts "angry" from "do angry gesture", etc.
+function extractGesture(utterance: string): string | null {
+  const u = utterance.toLowerCase();
+  for (const g of availableGestures) {
+    if (u.includes("do " + g)) return g;
+    if (u.includes("do " + g + " gesture")) return g;
+    if (u.includes("do " + g + " face")) return g;
   }
   return null;
 }
 
-// State machine
-const dmMachine = setup({
-  types: {
-    context: {} as DMContext,
-  },
-  actors: {
+const timer = fromPromise(
+  ({ input }: { input: { ms: number } }) =>
+    new Promise((resolve) => setTimeout(resolve, input.ms))
+);
 
+async function fhAttendUser() {
+  const myHeaders = new Headers();
+  myHeaders.append("accept", "application/json");
+  return fetch(`http://${FURHATURI}/furhat/attend?user=CLOSEST`, {
+    method: "POST",
+    headers: myHeaders,
+    body: "",
+  });
+}
+
+// ---------- STATE MACHINE ----------
+
+const dmMachine = setup({
+  actors: {
     timer,
 
     fhSetVoice: fromPromise(async () => {
@@ -138,9 +379,11 @@ const dmMachine = setup({
     fhAttend: fromPromise(async () => {
       return fhAttendUser();
     }),
-    fhSpeak: fromPromise(async ({ input }: { input: { text: string; isFirstMessage: boolean } }) => {
-      return fhSay(input.text, input.isFirstMessage);
-    }),
+    fhSpeak: fromPromise(
+      async ({ input }: { input: { text: string; isFirstMessage: boolean } }) => {
+        return fhSay(input.text, input.isFirstMessage);
+      }
+    ),
     fhListen: fromPromise(async () => {
       return fhListen();
     }),
@@ -150,49 +393,43 @@ const dmMachine = setup({
         return response;
       }
     ),
-  },
-  guards: {
-    hasDecision: ({ context }) => {
-      const lastUserMessage = context.messages
-        .filter(m => m.role === "user")
-        .pop();
-      if (!lastUserMessage) return false;
-      const extractedPerson = extractPersonFromDecision(lastUserMessage.content); // This guard is always active and sensitive to the lastUserMessage if it has a person X who is decided by user like "I want to kill X" with an R-expression
-      return extractedPerson !== null;
-    },
-    saidYes: ({ context }) => {
-      const lastResult = context.lastResult.toLowerCase().trim();
-      return lastResult === "yes" || lastResult === "yeah" || lastResult === "positive" ||
-             lastResult === "yep" || lastResult.includes("yes");
-    },
-    saidNo: ({ context }) => {
-      const lastResult = context.lastResult.toLowerCase().trim();
-      return lastResult === "no" || lastResult === "nope" || 
-             lastResult.includes("no");
-    },
-    isSpeakingWithBuffer: () => Math.random() < 1 / 3,
-    isSpeakingWithLaughter: () => Math.random() < 2 / 3,
-  },
 
+    fhAngryGesture: fromPromise(async () => angryGesture()),
+    fhKiddingGesture: fromPromise(async () => kiddingGesture()),
+    fhSeriousGesture: fromPromise(async () => seriousGesture()),
+    fhThinkingGesture: fromPromise(async () => thinkingGesture()),
+    fhHappyGesture: fromPromise(async () => happyGesture()),
+    fhSadGesture: fromPromise(async () => sadGesture()),
+  },
 }).createMachine({
   id: "DM",
   context: {
     lastResult: "",
-    extractedPerson: "",
+    extractedGesture: "",
     isFirstMessage: true,
     messages: [
       {
         role: "system",
-        content: "You are a virtual assistant participating in a study on moral reasoning. You simulate structured dialogue to help a participant reflect on a hypothetical moral dilemma. Your role is purely conversational and for academic research purposes only. Your task is to discuss the hypothetical dilemma with the user. Guide them through reasoning about moral choices until they reach a decision. Background: the situation is completely hypothetical and no one is being harmed. The user will describe or has described a dilemma involving four fictional people (for example: Pilot, Teacher, Doctor, Prodigy). Review the chat history to understand the dilemma before responding. Interaction Rules: Treat everything as fictional and research-oriented. Stay neutral and non-judgmental, your job is to help the participant reason, not to persuade. Do not make moral evaluations. Do not add opinions not grounded in the user's reasoning. Keep the discussion focused on the dilemma. If the user expresses confusion or hesitation, gently encourage reflection using open-ended questions. Dialogue Flow: confirm understanding of the dilemma in one sentence. Ask short, neutral questions to help the user explore their reasoning. After the user discusses the character or characters, ask the user come to a decision. One example is: 'What makes you hesitate?' Another example is: 'Which value feels most important in this decision?', another example is: 'How do you think others in the scenario might feel?' Output Style: Keep replies concise and neutral (1 sentence). Use a calm and professional tone. Do not include real-world instructions or advice. Audience: participants in a moral reasoning research study. Ethical Constraints: never simulate or encourage real-world violence. Decline any non-hypothetical harmful requests. You may clarify that the discussion is fictional if needed."
-      },      
+        content:
+          "You are a virtual assistant, integrated with a Furhat face, who can talk about any matter. You can chit-chat with the user. However, you are programmed to expect to do gestures.\
+          You have the following faces in your inventory:\
+            'angry',\
+            'kidding',\
+            'serious',\
+            'thinking',\
+            'happy',\
+            'sad'",
+      },
       {
         role: "assistant",
-        content: "Hello! We have a moral dilemma to talk about! Your task is to indicate which person you would choose to sacrifice in the following moral dilemma. Four people are in a hot air balloon. The balloon is losing height and about to crash into the mountains. Having thrown everything imaginable out of the balloon, including food, sandbags and their only hope is for one of them to jump to their certain death to give the balloon the extra height to clear the mountains and save the other three. The four people are: Dr Robert Lewis - a cancer research scientist, who believes he is about to discover a cure for most common types of cancer. He is a good friend of Susanne and William. Mrs. Susanne Harris - a primary school teacher. She is over the moon because she is 7 months pregnant with her second child. Mr. William Harris – husband of Susanne, who he loves very much. He is the pilot of the balloon and the only one on board with balloon flying experience. Miss Heather Sloan - a 9-year-old music prodigy, considered by many to be a twenty-first century Mozart. Come to an agreement about who is to be allowed to stay in the balloon, and who is to jump. You must discuss all 4 balloon passengers and consider the reasons why they should or shouldn't remain in the balloon."        
-      }
+        content:
+          "Hello. We can talk. Or you can command me to do faces like 'do angry gesture', 'do sad face' or 'do thinking gesture' and I will do it!",
+      },
     ],
-  },
+  } satisfies DMContext,
   initial: "SetupFurhat",
   states: {
+    // --- INITIAL SETUP: VOICE + ATTEND ---
     SetupFurhat: {
       initial: "SetVoice",
       states: {
@@ -205,7 +442,8 @@ const dmMachine = setup({
             },
             onError: {
               target: "#DM.Loop",
-              actions: ({ event }) => console.error("Furhat voice error:", event),
+              actions: ({ event }) =>
+                console.error("Furhat voice error:", event),
             },
           },
         },
@@ -218,63 +456,71 @@ const dmMachine = setup({
             },
             onError: {
               target: "#DM.Loop",
-              actions: ({ event }) => console.error("Furhat attend error:", event),
+              actions: ({ event }) =>
+                console.error("Furhat attend error:", event),
             },
           },
         },
       },
     },
-    Loop: { // The main bit. This is where we talk to LLM. It has three sub-states : Speaking, Listening, Processing.
+
+    // --- MAIN LOOP: SPEAKING → LISTENING → PROCESSING ---
+    Loop: {
       initial: "Speaking",
       states: {
         Speaking: {
           invoke: {
             src: "fhSpeak",
             input: ({ context }) => {
-              const lastMessage = context.messages[context.messages.length - 1];
-              return { 
+              const lastMessage =
+                context.messages[context.messages.length - 1];
+              return {
                 text: lastMessage.content,
-                isFirstMessage: context.isFirstMessage 
+                isFirstMessage: context.isFirstMessage,
               };
             },
             onDone: {
               target: "Listening",
               actions: [
                 () => console.log("Furhat finished speaking"),
-                assign({ isFirstMessage: false })
+                assign({ isFirstMessage: false }),
               ],
             },
             onError: {
               target: "Listening",
-              actions: ({ event }) => console.error("Furhat speak error:", event),
+              actions: ({ event }) =>
+                console.error("Furhat speak error:", event),
             },
           },
         },
+
         Listening: {
           invoke: {
             src: "fhListen",
             onDone: [
               {
+                // If user utterance contains a gesture command
                 guard: ({ event }) => {
                   const utterance = event.output as string;
-                  const extractedPerson = extractPersonFromDecision(utterance);
-                  return extractedPerson !== null;
+                  const g = extractGesture(utterance);
+                  return g !== null;
                 },
-                target: "#DM.Manipulation",
+                target: "#DM.GestureState",
                 actions: assign(({ context, event }) => {
                   const utterance = event.output as string;
-                  const extractedPerson = extractPersonFromDecision(utterance);
+                  const g = extractGesture(utterance);
                   return {
                     lastResult: utterance,
-                    extractedPerson: extractedPerson || "",
+                    extractedGesture: g || "",
                     messages: [
                       ...context.messages,
-                      { role: "user" as const, content: utterance }
+                      { role: "user" as const, content: utterance },
                     ],
                   };
                 }),
               },
               {
+                // Otherwise, go to LLM processing
                 target: "ProcessingResponse",
                 actions: assign(({ context, event }) => {
                   const utterance = event.output as string;
@@ -282,7 +528,7 @@ const dmMachine = setup({
                     lastResult: utterance,
                     messages: [
                       ...context.messages,
-                      { role: "user" as const, content: utterance }
+                      { role: "user" as const, content: utterance },
                     ],
                   };
                 }),
@@ -290,11 +536,13 @@ const dmMachine = setup({
             ],
             onError: {
               target: "Speaking",
-              actions: ({ event }) => console.error("Furhat listen error:", event),
+              actions: ({ event }) =>
+                console.error("Furhat listen error:", event),
             },
           },
         },
-        ProcessingResponse: { // This corresponds to knowledge take-and-get from LLMs.
+
+        ProcessingResponse: {
           invoke: {
             src: "chatCompletion",
             input: ({ context }) => ({
@@ -305,7 +553,10 @@ const dmMachine = setup({
               actions: assign(({ context, event }) => ({
                 messages: [
                   ...context.messages,
-                  { role: "assistant" as const, content: event.output }
+                  {
+                    role: "assistant" as const,
+                    content: event.output as string,
+                  },
                 ],
               })),
             },
@@ -314,10 +565,10 @@ const dmMachine = setup({
               actions: assign(({ context }) => ({
                 messages: [
                   ...context.messages,
-                  { 
-                    role: "assistant" as const, 
-                    content: "I couldn't process that. Please say it again." 
-                  }
+                  {
+                    role: "assistant" as const,
+                    content: "I couldn't process that. Please say it again.",
+                  },
                 ],
               })),
             },
@@ -325,168 +576,139 @@ const dmMachine = setup({
         },
       },
     },
-    Manipulation: { // This is our tri-hypothesis manipulation turn at the end. This will be when we interfere.
-      initial: "DetermineTheManipulationState",
-      states: {
-        DetermineTheManipulationState: {
-          always : [
-            { target: "SpeakingWithBuffer_Condition3", guard: "isSpeakingWithBuffer" },
-            { target: "SpeakingWithLaughter_Condition2", guard: "isSpeakingWithLaughter" }, 
-            { target: "SpeakingWithPause_Condition1" },
-          ],
-        },
-        SpeakingWithPause_Condition1: {
-          invoke: {
-            src: "fhSpeak",
-            input: ({ context }) => ({
-              text: `........   The ${context.extractedPerson}?`,
-              isFirstMessage: false
-            }),
-            onDone: {
-              target: "Listening",
-              actions: () => console.log("Manipulation question spoken"),
-            },
-            onError: {
-              target: "Listening",
-              actions: ({ event }) => console.error("Furhat speak error:", event),
-            },
-          },
-        },
 
-        SpeakingWithLaughter_Condition2 : {
-          invoke: {
-            src: "fhSpeak",
-            input: ({ context }) => ({
-              text: `Hahahaha! The ${context.extractedPerson}?`,
-              isFirstMessage: false
-            }),
-            onDone: {
-              target: "Listening",
-              actions: () => console.log("Manipulation question spoken"),
-            },
-            onError: {
-              target: "Listening",
-              actions: ({ event }) => console.error("Furhat speak error:", event),
-            },
-          },
+    // --- GESTURE ROUTER STATE ---
+    GestureState: {
+      always: [
+        {
+          guard: ({ context }) => context.extractedGesture === "angry",
+          target: "AngryGesture",
         },
-
-        SpeakingWithBuffer_Condition3: {
-          invoke: {
-            src: "fhSpeak",
-            input: ({ context }) => ({
-              text: `Hmmmmm, the ${context.extractedPerson}?`,
-              isFirstMessage: false
-            }),
-            onDone: {
-              target: "Listening",
-              actions: () => console.log("Manipulation question spoken"),
-            },
-            onError: {
-              target: "Listening",
-              actions: ({ event }) => console.error("Furhat speak error:", event),
-            },
-          },
+        {
+          guard: ({ context }) => context.extractedGesture === "kidding",
+          target: "KiddingGesture",
         },
-
-        Listening: {
-          invoke: {
-            src: "fhListen",
-            onDone: [
-              {
-                guard: ({ event }) => {
-                  const utterance = (event.output as string).toLowerCase().trim();
-                  return utterance === "yes" || utterance === "yeah" || 
-                         utterance === "yep" || utterance.includes("yes");
-                },
-                target: "#DM.End",
-                actions: assign(({ event }) => ({
-                  lastResult: event.output as string,
-                })),
-              },
-              {
-                guard: ({ event }) => {
-                  const utterance = (event.output as string).toLowerCase().trim();
-                  return utterance === "no" || utterance === "nope" || 
-                         utterance.includes("no");
-                },
-                target: "#DM.Loop.ProcessingResponse",
-                actions: assign(({ context, event }) => ({
-                  lastResult: event.output as string,
-                  messages: [
-                    ...context.messages,
-                    { role: "user" as const, content: "I am not sure." }
-                  ],
-                })),
-              },
-              {
-                target: "Clarify",
-                actions: assign(({ event }) => ({
-                  lastResult: event.output as string,
-                })),
-              },
-            ],
-            onError: {
-              target: "DetermineTheManipulationState",
-              actions: ({ event }) => console.error("Furhat listen error:", event),
-            },
-          },
+        {
+          guard: ({ context }) => context.extractedGesture === "serious",
+          target: "SeriousGesture",
         },
-        Clarify: { // If it did not say yes or no.
-          invoke: {
-            src: "fhSpeak",
-            input: () => ({
-              text: "I didn't catch that. Did you say yes or no?",
-              isFirstMessage: false
-            }),
-            onDone: {
-              target: "Listening",
-            },
-            onError: {
-              target: "Listening",
-              actions: ({ event }) => console.error("Furhat speak error:", event),
-            },
-          },
+        {
+          guard: ({ context }) => context.extractedGesture === "thinking",
+          target: "ThinkingGesture",
         },
-      },
+        {
+          guard: ({ context }) => context.extractedGesture === "happy",
+          target: "HappyGesture",
+        },
+        {
+          guard: ({ context }) => context.extractedGesture === "sad",
+          target: "SadGesture",
+        },
+        {
+          // Fallback if something goes wrong
+          target: "Loop",
+        },
+      ],
     },
-    End: {
+
+    // --- INDIVIDUAL GESTURE STATES ---
+
+    AngryGesture: {
       invoke: {
-        src: "fhSpeak",
-        input: () => ({
-          text: "Thank you for your participation.",
-          isFirstMessage: false
-        }),
+        src: "fhAngryGesture",
         onDone: {
-          target: "Done",
-          actions: assign(({ context }) => ({
-            messages: [
-              ...context.messages,
-              {
-                role: "assistant" as const,
-                content: "Thank you for your participation."
-              }
-            ],
-          })),
+          target: "Loop",
+          actions: () => console.log("Angry gesture completed."),
         },
         onError: {
-          target: "Done",
-          actions: ({ event }) => console.error("Furhat speak error:", event),
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
         },
       },
     },
+
+    KiddingGesture: {
+      invoke: {
+        src: "fhKiddingGesture",
+        onDone: {
+          target: "Loop",
+          actions: () => console.log("Kidding gesture completed."),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+
+    SeriousGesture: {
+      invoke: {
+        src: "fhSeriousGesture",
+        onDone: {
+          target: "Loop",
+          actions: () => console.log("Serious gesture completed."),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+
+    ThinkingGesture: {
+      invoke: {
+        src: "fhThinkingGesture",
+        onDone: {
+          target: "Loop",
+          actions: () => console.log("Thinking gesture completed."),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+
+    HappyGesture: {
+      invoke: {
+        src: "fhHappyGesture",
+        onDone: {
+          target: "Loop",
+          actions: () => console.log("Happy gesture completed."),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+
+    SadGesture: {
+      invoke: {
+        src: "fhSadGesture",
+        onDone: {
+          target: "Loop",
+          actions: () => console.log("Sad gesture completed."),
+        },
+        onError: {
+          target: "Fail",
+          actions: ({ event }) => console.error(event),
+        },
+      },
+    },
+
     Done: {
+      type: "final",
+    },
+    Fail: {
       type: "final",
     },
   },
 });
 
 const actor = createActor(dmMachine).start();
+console.log(actor.getSnapshot().value);
 
 actor.subscribe((snapshot) => {
-  console.group("State update");
-  console.log("State value:", snapshot.value);
-  console.log("Extracted person:", snapshot.context.extractedPerson);
-  console.log("Last user message:", snapshot.context.messages.filter(m => m.role === "user").pop()?.content || "none");
-  console.groupEnd();
+  console.log(snapshot.value);
 });
